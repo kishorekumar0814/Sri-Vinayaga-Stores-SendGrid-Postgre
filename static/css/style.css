@@ -69,3 +69,38 @@ body{margin:0;background:var(--bg);color:#222}
 a, a:visited, a:hover, a:active, a:focus {
     text-decoration: none !important;
 }
+
+@media (max-width:700px){
+  .sidenav {
+      position: fixed;
+      left: -220px;
+      top: 0;
+      height: 100%;
+      width: 220px;
+      background: var(--accent);
+      padding: 20px;
+      transition: left 0.3s ease;
+      z-index: 999;
+  }
+
+  .sidenav.open {
+      left: 0; /* slide in */
+  }
+
+  .nav-toggle {
+      display: inline-block;
+      position: absolute;
+      left: 10px;
+      top: 18px;
+      background: none;
+      border: none;
+      color: var(--accent);
+      font-size: 26px;
+      cursor: pointer;
+      z-index: 1000;
+  }
+
+  .main {
+      margin-left: 0 !important;
+  }
+}
