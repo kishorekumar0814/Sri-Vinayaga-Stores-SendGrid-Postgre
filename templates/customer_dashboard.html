@@ -7,6 +7,13 @@
     <p><strong>CUID:</strong> {{ customer.cuid }}</p>
     <p><strong>Mobile:</strong> {{ customer.mobile }}</p>
     <p><strong>Address:</strong> {{ customer.address }}</p>
+    <div style="text-align:right;">
+    <a href="{{ url_for('customer_update') }}" class="btn small">Edit Profile</a>
+    <form method="post" action="{{ url_for('customer_delete') }}" style="display:inline;" onsubmit="return confirm('Delete your account permanently?');">
+        <button class="btn small danger">Delete Account</button>
+    </form>
+</div>
+
   </div>
 
   <div class="order-form-card">
@@ -14,7 +21,10 @@
     <form method="post" enctype="multipart/form-data">
       <label>Order (text)</label>
       <textarea name="order_text" placeholder="2kg rice, 1kg sugar..."></textarea>
-      <label>Or upload document (jpg,png,pdf,doc)</label>
+      &nbsp; &nbsp; &nbsp; &nbsp;
+      <label>or</label>
+      &nbsp; &nbsp; &nbsp; &nbsp;
+      <label>Upload document (jpg,png,pdf,doc)</label>
       <input type="file" name="order_file">
       <label>Pickup option</label>
       <select name="pickup_option">

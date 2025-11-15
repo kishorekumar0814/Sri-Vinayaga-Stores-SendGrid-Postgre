@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+.edit-card {
+    max-width: 450px;
+    margin: 40px auto;
+    background: #ffffff;
+    padding: 25px 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.1);
+    animation: fadeIn 0.4s ease-in-out;
+}
+
+.edit-card h3 {
+    text-align: center;
+    margin-bottom: 20px;
+    font-size: 22px;
+    color: #333;
+}
+
+.edit-card label {
+    display: block;
+    margin-top: 12px;
+    font-weight: bold;
+}
+
+.edit-card input {
+    width: 100%;
+    padding: 10px;
+    margin-top: 6px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-size: 14px;
+}
+
+.update-btn {
+    width: 100%;
+    margin-top: 20px;
+    padding: 12px;
+    font-size: 16px;
+    border: none;
+    border-radius: 8px;
+    background: #007bff;
+    color: white;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.update-btn:hover {
+    background: #005fcc;
+}
+
+@keyframes fadeIn {
+    from {opacity: 0; transform: translateY(20px);}
+    to {opacity: 1; transform: translateY(0);}
+}
+</style>
+
+<div class="edit-card">
+  <h3>Admin Profile Update</h3>
+
+  <form method="post">
+    <label>Name</label>
+    <input type="text" name="name" value="{{ admin.name }}">
+
+    <label>Email</label>
+    <input type="email" name="email" value="{{ admin.email }}">
+
+    <label>Mobile</label>
+    <input type="text" name="mobile" value="{{ admin.mobile }}">
+
+    <button type="submit" class="update-btn">Update</button>
+  </form>
+</div>
+
+{% endblock %}

@@ -1,24 +1,24 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="center-card">
-  <h2>Billing for Order {{ order.order_id }}</h2>
+  <h2>Billing for Order - {{ order.order_id }}</h2>
   <p><strong>Customer:</strong> {{ order.customer.name }} | <strong>Pickup:</strong> {{ order.pickup_option }} | <strong>Status:</strong> {{ order.status }}</p>
 
   <div class="card small">
-    <h4>Items (add rows then Generate Bill)</h4>
+    <h4>Items - Description</h4>
     <form method="post" id="billingForm">
       <div id="itemsWrapper">
         <div class="item-row">
           <input name="item_name[]" placeholder="Item name" required>
           <input name="item_qty[]" placeholder="Qty (e.g., 2kg)" required>
           <input name="item_price[]" placeholder="Price" required>
-          <button type="button" class="btn small danger" onclick="removeRow(this)">-</button>
+          <button type="button" class="btn small danger" onclick="removeRow(this)">Remove</button>
         </div>
       </div>
 
-      <button type="button" class="btn" onclick="addRow()">Add Item</button>
+      <button type="button" class="btn" onclick="addRow()">Add Next Item</button>
       <div class="form-actions">
-        <button class="btn" type="submit">Generate Bill (PDF)</button>
+        <button class="btn" type="submit">Generate Bill</button>
       </div>
     </form>
   </div>

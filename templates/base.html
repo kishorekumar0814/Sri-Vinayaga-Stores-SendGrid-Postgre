@@ -20,7 +20,8 @@
     <main class="main">
       <header class="site-header">
         <h1 class="shop-name">Sri Vinayaga Stores</h1>
-        <div class="quote-marquee"><marquee behavior="scroll" direction="left">Fresh daily groceries • Friendly service • Quality you can trust</marquee></div>
+        <p><center>𝑃𝑖𝑙𝑙𝑎𝑖𝑦𝑎𝑟 𝐾𝑢𝑝𝑝𝑎𝑚, 𝑉𝑒𝑙𝑙𝑜𝑟𝑒 - 09</center><p>
+        <div class="quote-marquee"><marquee behavior="scroll" direction="left">𝐹𝑟𝑒𝑠ℎ 𝐷𝑎𝑖𝑙𝑦 𝐺𝑟𝑜𝑐𝑒𝑟𝑖𝑒𝑠 &nbsp &nbsp &nbsp &nbsp • &nbsp &nbsp &nbsp &nbsp  𝐹𝑟𝑖𝑒𝑛𝑑𝑙𝑦 𝑆𝑒𝑟𝑣𝑖𝑐𝑒 &nbsp &nbsp &nbsp &nbsp • &nbsp &nbsp &nbsp &nbsp 𝑄𝑢𝑎𝑙𝑖𝑡𝑦 𝑌𝑜𝑢 𝐶𝑎𝑛 𝑇𝑟𝑢𝑠𝑡</marquee></div>
         <div class="top-links">
           {% if session.get('role') == 'admin' %}
             <a class="badge" href="{{ url_for('admin_dashboard') }}">Admin: {{ session.get('admin_name') }}</a>
@@ -49,7 +50,7 @@
       </section>
 
       <footer class="site-footer">
-        <p>© Sri Vinayaga Stores - 2025</p>
+        <p>© Sri Vinayaga Stores - 2025 - [Site Under Development & Testing]</p>
       </footer>
     </main>
   </div>

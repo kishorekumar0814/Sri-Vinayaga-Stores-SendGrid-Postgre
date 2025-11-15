@@ -6,12 +6,23 @@
     <p><strong>Name:</strong> {{ admin.name }}</p>
     <p><strong>AUID:</strong> {{ admin.auid }}</p>
     <p><strong>Mobile:</strong> {{ admin.mobile }}</p>
-
-    <form method="post" action="{{ url_for('admin_upload_qr') }}" enctype="multipart/form-data">
-      <label>Upload QR (for bills)</label>
-      <input type="file" name="qr" accept="image/*">
-      <button class="btn" type="submit">Upload QR</button>
+    <div style="text-align:right;">
+    <a href="{{ url_for('admin_update') }}" class="btn small">Edit Profile</a>
+    <form method="post" action="{{ url_for('admin_delete') }}" style="display:inline;" onsubmit="return confirm('Delete your admin account permanently?');">
+        <button class="btn small danger">Delete Account</button>
     </form>
+    </div>
+    <form method="post" action="{{ url_for('admin_upload_qr') }}" enctype="multipart/form-data">
+    <label>Upload QR (for bills)</label>
+    <input type="file" name="qr" accept="image/*">
+    <button class="btn" type="submit">Upload QR</button>
+
+    {% if session.get('qr_uploaded') %}
+        <span style="color: green; font-weight: bold; margin-left: 10px;">
+            QR Code Uploaded ✔
+        </span>
+    {% endif %}
+  </form>
   </div>
 
   <div class="orders-card">

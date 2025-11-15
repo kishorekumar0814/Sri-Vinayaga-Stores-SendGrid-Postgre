@@ -116,15 +116,64 @@ def create_app():
     @app.route('/admin/upload_qr', methods=['POST'])
     @admin_required
     def admin_upload_qr():
-        f = request.files.get('qr')
-        if f and allowed_file(f.filename):
-            filename = secure_filename(f.filename)
-            path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            f.save(path)
-            flash("QR uploaded", "success")
-        else:
-            flash("Invalid QR file", "danger")
+        qr_file = request.files.get('qr')
+
+        if qr_file:
+            filename = "qr_code.png"
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            qr_file.save(filepath)
+
+            session['qr_uploaded'] = True
+            flash("QR Code uploaded successfully", "success")
+
         return redirect(url_for('admin_dashboard'))
+
+    
+    @app.route('/admin/update', methods=['GET', 'POST'])
+    @admin_required
+    def admin_update():
+        admin = Admin.query.get(session['admin_id'])
+
+        if request.method == 'POST':
+            name = request.form.get('name')
+            email = request.form.get('email')
+            mobile = request.form.get('mobile')
+
+            existing = Admin.query.filter_by(email=email).first()
+            if existing and existing.id != admin.id:
+                flash("Email already taken", "danger")
+                return redirect(url_for('admin_update'))
+
+            admin.name = name
+            admin.email = email
+            admin.mobile = mobile
+
+            db.session.commit()
+            session['admin_name'] = name
+            flash("Profile updated successfully", "success")
+            return redirect(url_for('admin_dashboard'))
+
+        return render_template('admin_update.html', admin=admin)
+
+    @app.route('/admin/delete', methods=['POST'])
+    @admin_required
+    def admin_delete():
+        admin = Admin.query.get(session['admin_id'])
+
+        bills = Bill.query.filter_by(admin_id=admin.id).all()
+        for b in bills:
+            try:
+                os.remove(os.path.join(app.config['UPLOAD_FOLDER'], b.pdf_filename))
+            except:
+                pass
+            db.session.delete(b)
+
+        db.session.delete(admin)
+        db.session.commit()
+
+        session.clear()
+        flash("Admin account deleted permanently.", "info")
+        return redirect(url_for('home'))
 
     # admin change order status
     @app.route('/admin/order/<int:order_id>/status', methods=['POST'])
@@ -197,61 +246,111 @@ def create_app():
         pdf_path: full filesystem path where to save
         """
         customer = Customer.query.filter_by(id=order.customer_id).first()
+
         c = canvas.Canvas(pdf_path, pagesize=A4)
         width, height = A4
-        # header
+
+        # ================= HEADER =================
         c.setFont("Helvetica-Bold", 18)
-        c.drawCentredString(width/2, height - 50, "Sri Vinayaga Stores")
+        c.drawCentredString(width / 2, height - 50, "Sri Vinayaga Stores")
+
+        # NEW shop address line
+        c.setFont("Helvetica", 12)
+        c.drawCentredString(width / 2, height - 70, "Pillaiyar Kuppam, Vellore - 09.")
+
+        # Bill and Order Info
         c.setFont("Helvetica", 10)
-        c.drawString(50, height - 80, f"Bill ID: {bill.bill_id}")
-        c.drawString(50, height - 95, f"Order ID: {order.order_id}")
-        c.drawString(50, height - 110, f"Date: {now_str()}")
-        # customer details
+        c.drawString(50, height - 95, f"Bill ID: {bill.bill_id}")
+        c.drawString(50, height - 110, f"Order ID: {order.order_id}")
+        c.drawString(50, height - 125, f"Date: {now_str()}")
+
+        # ================= CUSTOMER =================
         c.setFont("Helvetica-Bold", 12)
-        c.drawString(50, height - 140, "Customer Details")
+        c.drawString(50, height - 155, "Customer Details")
+
         c.setFont("Helvetica", 10)
-        c.drawString(50, height - 155, f"Name: {customer.name if customer else ''}")
-        c.drawString(50, height - 170, f"Mobile: {customer.mobile if customer else ''}")
-        c.drawString(50, height - 185, f"Address: {customer.address if customer else ''}")
-        # items
+        c.drawString(50, height - 170, f"Name: {customer.name if customer else ''}")
+        c.drawString(50, height - 185, f"Mobile: {customer.mobile if customer else ''}")
+        c.drawString(50, height - 200, f"Address: {customer.address if customer else ''}")
+
+        # ================= ITEMS =================
         c.setFont("Helvetica-Bold", 12)
-        c.drawString(50, height - 210, "Items")
+        c.drawString(50, height - 230, "Items")
+
         c.setFont("Helvetica", 10)
-        y = height - 230
-        items = items_from_json(bill.items_json)
+        y = height - 250
+
         c.drawString(50, y, "S.No")
         c.drawString(90, y, "Item")
         c.drawString(350, y, "Qty")
         c.drawString(430, y, "Price")
         y -= 15
+
+        items = items_from_json(bill.items_json)
         i = 1
+
         for it in items:
             c.drawString(50, y, str(i))
-            c.drawString(90, y, str(it.get('name','')))
-            c.drawString(350, y, str(it.get('qty','')))
-            c.drawString(430, y, f"{it.get('price',0):.2f}")
+            c.drawString(90, y, str(it.get('name', '')))
+            c.drawString(350, y, str(it.get('qty', '')))
+            c.drawString(430, y, f"{it.get('price', 0):.2f}")
+
             y -= 15
             i += 1
-            if y < 80:
+
+            # New page if needed
+            if y < 120:
                 c.showPage()
-                y = height - 80
-        # total
+                y = height - 100
+
+        # ================= TOTAL AMOUNT =================
+        # slightly moved left & above QR area
         c.setFont("Helvetica-Bold", 12)
-        c.drawString(350, y - 10, "Grand Total: ")
-        c.drawString(430, y - 10, f"{bill.total_amount:.2f}")
-        # QR at left corner if exists (search for qr.* in upload folder)
+        c.drawString(300, y - 5, "Total Amount: Rs.")
+        c.drawString(420, y - 5, f"{bill.total_amount:.2f}")
+
+        # ================= QR CODE =================
         try:
             files = os.listdir(app.config['UPLOAD_FOLDER'])
             qr_candidates = [f for f in files if 'qr' in f.lower()]
+
             if qr_candidates:
                 qr_path = os.path.join(app.config['UPLOAD_FOLDER'], qr_candidates[0])
-                # draw small QR
+
+                qr_size = 110  # bigger QR
+
+                # Move Scan & Pay UP (higher)
+                c.setFont("Helvetica-Bold", 12)
+                c.drawString(50, 170, "Scan & Pay")   # previously 120 → now 170
+
+                # Add gap between Scan & Pay and QR (QR lower)
                 img = Image.open(qr_path)
                 img_reader = ImageReader(img)
-                c.drawImage(img_reader, 50, 30, width=80, height=80, preserveAspectRatio=True)
+
+                c.drawImage(
+                    img_reader,
+                    50,
+                    40,      # previously 10 → now 40 (moves QR up but leaves gap)
+                    width=qr_size,
+                    height=qr_size,
+                    preserveAspectRatio=True
+                )
+
         except Exception as e:
             pass
+
+
+        # ================= FOOTER =================
+        c.setFont("Helvetica-Bold", 10)
+        c.drawCentredString(
+            width / 2,
+            20,
+            "Thanks for Ordering & Keep Purchasing - Sri Vinayaga Stores - Pillaiyar Kuppam, Vellore - 09."
+        )
+
         c.save()
+
+
 
     # serve uploaded files for download viewing
     @app.route('/uploads/<path:filename>')
@@ -338,6 +437,58 @@ def create_app():
             if b:
                 bills[o.order_id] = b
         return render_template('customer_dashboard.html', customer=customer, orders=orders, bills=bills)
+
+    @app.route('/customer/update', methods=['GET', 'POST'])
+    @customer_required
+    def customer_update():
+        customer = Customer.query.get(session['customer_id'])
+
+        if request.method == 'POST':
+            name = request.form.get('name')
+            email = request.form.get('email')
+            mobile = request.form.get('mobile')
+            address = request.form.get('address')
+
+            # Check if email already exists
+            existing = Customer.query.filter_by(email=email).first()
+            if existing and existing.id != customer.id:
+                flash("Email already taken", "danger")
+                return redirect(url_for('customer_update'))
+
+            customer.name = name
+            customer.email = email
+            customer.mobile = mobile
+            customer.address = address
+
+            db.session.commit()
+            session['customer_name'] = name
+            flash("Profile updated successfully", "success")
+            return redirect(url_for('customer_dashboard'))
+
+        return render_template('customer_update.html', customer=customer)
+
+    @app.route('/customer/delete', methods=['POST'])
+    @customer_required
+    def customer_delete():
+        customer = Customer.query.get(session['customer_id'])
+
+        # Delete all customer orders
+        orders = Order.query.filter_by(customer_id=customer.id).all()
+        for o in orders:
+            if o.uploaded_filename:
+                try:
+                    os.remove(os.path.join(app.config['UPLOAD_FOLDER'], o.uploaded_filename))
+                except:
+                    pass
+            db.session.delete(o)
+
+        db.session.delete(customer)
+        db.session.commit()
+
+        session.clear()
+        flash("Your account has been permanently deleted.", "info")
+        return redirect(url_for('home'))
+
 
     @app.route('/customer/order/<int:order_pk>/delete', methods=['POST'])
     @customer_required
