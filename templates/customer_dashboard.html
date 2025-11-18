@@ -1,50 +1,60 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="customer-wrap">
+
   <div class="customer-card">
     <h3>Your Details</h3>
     <p><strong>Name:</strong> {{ customer.name }}</p>
     <p><strong>CUID:</strong> {{ customer.cuid }}</p>
     <p><strong>Mobile:</strong> {{ customer.mobile }}</p>
     <p><strong>Address:</strong> {{ customer.address }}</p>
-    <div style="text-align:right;">
-    <a href="{{ url_for('customer_update') }}" class="btn small">Edit Profile</a>
-    <form method="post" action="{{ url_for('customer_delete') }}" style="display:inline;" onsubmit="return confirm('Delete your account permanently?');">
-        <button class="btn small danger">Delete Account</button>
-    </form>
-</div>
 
+    <div style="text-align:right;">
+      <a href="{{ url_for('customer_update') }}" class="btn small" style="padding:8px 14px;"><b>Edit Profile</b></a>
+      &nbsp;&nbsp;
+      <button class="btn small danger" style="padding:8px 14px;" onclick="openDeleteModal()"><b>Delete Account</b></button>
+    </div>
   </div>
 
   <div class="order-form-card">
     <h3>Place Order</h3>
     <form method="post" enctype="multipart/form-data">
       <label>Order (text)</label>
-      <textarea name="order_text" placeholder="2kg rice, 1kg sugar..."></textarea>
-      &nbsp; &nbsp; &nbsp; &nbsp;
-      <label>or</label>
-      &nbsp; &nbsp; &nbsp; &nbsp;
-      <label>Upload document (jpg,png,pdf,doc)</label>
-      <input type="file" name="order_file">
+      <textarea name="order_text" placeholder="2kg rice, 1kg sugar..." style="width:100%; padding:8px; border-radius:4px; border:1px solid #ccc;"></textarea>
+      <br>
+      <label>Upload document (jpg, png, pdf, doc)</label>
+      <input type="file" name="order_file" style="padding:6px; border-radius:4px; border:1px solid #ccc;">
+
       <label>Pickup option</label>
-      <select name="pickup_option">
+      <select name="pickup_option" style="padding:6px; border-radius:4px; border:1px solid #ccc;">
         <option>Self Pick</option>
         <option>Home Delivery</option>
       </select>
-      <div class="form-actions">
-        <button class="btn" type="submit">Submit Order</button>
+
+      <div class="form-actions" style="margin-top:10px;">
+        <button class="btn" type="submit" style="padding:8px 14px;">Submit Order</button>
       </div>
     </form>
   </div>
 
   <div class="orders-card">
     <h3>Your Orders</h3>
+
     {% if orders %}
-      <table class="orders-table">
-        <thead><tr><th>OrderID</th><th>Items/Text</th><th>File</th><th>Pickup</th><th>Status</th><th>Actions</th></tr></thead>
-        <tbody>
-        {% for o in orders %}
+      <table class="orders-table" style="width:100%; border-collapse:collapse;">
+        <thead>
           <tr>
+            <th>OrderID</th>
+            <th>Items/Text</th>
+            <th>File</th>
+            <th>Pickup</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for o in orders %}
+          <tr style="border-bottom:1px solid #ddd;">
             <td>{{ o.order_id }}</td>
             <td style="max-width:220px;overflow:auto;">{{ o.raw_text or '-' }}</td>
             <td>
@@ -53,22 +63,121 @@
               {% else %}-{% endif %}
             </td>
             <td>{{ o.pickup_option }}</td>
-            <td>{{ o.status }}</td>
+            <!-- STATUS COLOR -->
             <td>
+              {% if o.status == "Pending" %}
+                <span style="color:#0047AB; font-weight:bold;">Pending</span>
+              {% elif o.status == "Received" %}
+                <span style="color:#B8860B; font-weight:bold;">Received</span>
+              {% elif o.status == "Packed" %}
+                <span style="color:#228B22; font-weight:bold;">Packed</span>
+              {% else %}
+                {{ o.status }}
+              {% endif %}
+            </td>
+            <td style="display:flex; gap:5px; align-items:center;">
               <form method="post" action="{{ url_for('customer_delete_order', order_pk=o.id) }}" onsubmit="return confirm('Delete order?');">
-                <button class="btn small danger" type="submit">Delete</button>
+                <button class="btn small danger" style="padding:6px 12px;">Delete</button>
               </form>
+
               {% if bills.get(o.order_id) %}
-                <a class="btn small" href="{{ url_for('download_bill', bill_id=bills[o.order_id].bill_id) }}">Download Bill</a>
+                <a class="btn small" href="{{ url_for('download_bill', bill_id=bills[o.order_id].bill_id) }}" style="padding:6px 12px;">Download Bill</a>
               {% endif %}
             </td>
           </tr>
-        {% endfor %}
+          {% endfor %}
         </tbody>
       </table>
     {% else %}
       <p>No orders placed yet.</p>
     {% endif %}
   </div>
+
 </div>
+
+<!-- DELETE ACCOUNT MODAL -->
+<div id="deleteModal" style="
+    display:none;
+    position:fixed; 
+    top:0; left:0; 
+    width:100%; height:100%; 
+    background: rgba(0,0,0,0.5); 
+    justify-content:center; 
+    align-items:center;
+    z-index:2000;
+">
+  <div id="deleteCard" style="
+      background:white; 
+      padding:30px; 
+      border-radius:8px; 
+      width:350px; 
+      text-align:center;
+      transform: scale(0);
+      transition: transform 0.3s ease;
+  ">
+    <h3 style="color:#d9534f;"><b>⚠️ Warning!</b></h3>
+    <p>Are you sure you want to delete your account?</p>
+    <div style="display:flex; justify-content:center; gap:15px; margin-top:20px;">
+      <button class="btn" onclick="closeDeleteModal()" style="padding:6px 16px;">No</button>
+      <form method="post" action="{{ url_for('customer_delete') }}">
+        <button class="btn danger" type="submit" style="padding:6px 16px;" onclick="animateDelete()">Yes</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST NOTIFICATION -->
+<div id="toast" style="
+    visibility:hidden;
+    min-width:250px;
+    margin-left:-125px;
+    background-color:#333;
+    color:#fff;
+    text-align:center;
+    border-radius:4px;
+    padding:16px;
+    position:fixed;
+    z-index:3000;
+    left:50%;
+    bottom:30px;
+    font-size:17px;
+    opacity:0;
+    transition: opacity 0.5s, bottom 0.5s;
+">Account deleted successfully!</div>
+
+<script>
+  function openDeleteModal() {
+    const modal = document.getElementById('deleteModal');
+    const card = document.getElementById('deleteCard');
+    modal.style.display = 'flex';
+    setTimeout(() => { card.style.transform = 'scale(1)'; }, 50);
+  }
+
+  function closeDeleteModal() {
+    const modal = document.getElementById('deleteModal');
+    const card = document.getElementById('deleteCard');
+    card.style.transform = 'scale(0)';
+    setTimeout(() => { modal.style.display = 'none'; }, 300);
+  }
+
+  function animateDelete() {
+    const card = document.getElementById('deleteCard');
+    card.style.transform = 'scale(0)';
+    setTimeout(() => {
+      showToast();
+    }, 300);
+  }
+
+  function showToast() {
+    const toast = document.getElementById('toast');
+    toast.style.visibility = 'visible';
+    toast.style.opacity = '1';
+    toast.style.bottom = '50px';
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.bottom = '30px';
+      setTimeout(() => { toast.style.visibility = 'hidden'; }, 500);
+    }, 3000);
+  }
+</script>
 {% endblock %}

@@ -10,6 +10,53 @@
   <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
   <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon-32x32.png') }}">
   <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon-16x16.png') }}">
+  <style>
+    .flash-area {
+        margin-bottom: 15px;
+    }
+
+    .flash {
+        padding: 10px 15px;
+        border-radius: 6px;
+        font-weight: bold;
+        font-size: 15px;
+        margin-bottom: 8px;
+
+        opacity: 0;              /* initially hidden */
+        animation: fadeIn 0.8s forwards;
+    }
+
+    /* 🟥 Red Flash Message */
+    .flash.error, .flash.danger, .flash.red {
+        background: #ffe5e5;
+        color: #b30000;
+        border-left: 4px solid #ff0000;
+        box-shadow: 0 2px 5px rgba(255, 0, 0, 0.2);
+    }
+
+    /* 🟩 Green Flash (Success) */
+    .flash.success, .flash.green {
+        background: #e6ffed;
+        color: #0d8a32;
+        border-left: 4px solid #0bc650;
+        box-shadow: 0 2px 5px rgba(0, 200, 80, 0.2);
+    }
+
+    /* Fade-out animation */
+    .fade-out {
+        animation: fadeOut 1s forwards;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-5px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeOut {
+        from { opacity: 1; }
+        to   { opacity: 0; transform: translateY(-5px); }
+    }
+  </style>
 
 </head>
 <body>
@@ -45,22 +92,25 @@
           style="
             position: fixed;
             width: 8%;
-            bottom: 80px;        /* above Install button */
+            bottom: 80px;
             left: 20px;
-            padding: 10px 14px;   /* reduced size */
-            font-size: 14px;     /* smaller text like Install App */
+            padding: 10px 14px;
+            font-size: 15px;
             background: #2b7a78;
-            color: white;
-            border: 2px solid #ffffff;
+            color: #ffffff;       /* brighter text */
+            border: 2.4px solid #ffffff;  /* bright border */
             border-radius: 6px;
             cursor: pointer;
-            opacity: 0.5;
-            font-size: 15px;
+            opacity: 1;           /* remove dimming */
             text-align: center;
             z-index: 1000;
-          ">
+            transition: 0.3s;     /* smooth hover effect */
+          "
+          onmouseover="this.style.opacity='0.9'"
+          onmouseout="this.style.opacity='1'">
           Share
         </button>
+
         </li>
       </ul>
     </nav>
@@ -96,9 +146,6 @@
 
         {% block content %}{% endblock %}
       </section>
-      <!-- <button id="install-btn" style="display:none; position:fixed; bottom:20px; right:20px; padding:10px 18px; background:#2b7a78; color:white; border: 2px solid #357ABD;  border-radius:6px; cursor:pointer; z-index:1000;">
-        Install App
-      </button> -->
 
       <footer class="site-footer">
         <p>© Sri Vinayaga Stores - 2025 - [Site Under Development & Testing]</p>
@@ -117,23 +164,7 @@
     });
   }
   </script>
-  <!-- Add to Home Screen Prompt -->
-  <!-- <script>
-  let deferredPrompt;
-  window.addEventListener("beforeinstallprompt", (e) => {
-      e.preventDefault();
-      deferredPrompt = e;
-      document.getElementById("install-btn").style.display = "block"; // show custom button
-  });
 
-  document.getElementById("install-btn").addEventListener("click", async () => {
-      document.getElementById("install-btn").style.display = "none";
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      console.log(`User response: ${outcome}`);
-      deferredPrompt = null;
-  });
-  </script> -->
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register("{{ url_for('static', filename='service-worker.js') }}")
@@ -147,7 +178,7 @@
 
         const shareData = {
             title: "Check this app!",
-            text: "Install this app – very useful!",
+            text: "Install this app – Shop Online!",
             url: window.location.origin
         };
 
@@ -188,5 +219,28 @@
         deferredPrompt = null;
     });
   </script>
+
+  <script>
+  document.addEventListener("DOMContentLoaded", function() {
+      const flashMessages = document.querySelectorAll(".flash");
+
+      flashMessages.forEach(msg => {
+          let text = msg.innerText.toLowerCase();
+
+          // Default timeout 10 seconds
+          let hideTime = 10000;
+
+          // If message contains CUID or AUID => 30 seconds
+          if (text.includes("cuid") || text.includes("auid")) {
+              hideTime = 30000;
+          }
+
+          setTimeout(() => {
+              msg.classList.add("fade-out");
+          }, hideTime);
+      });
+  });
+  </script>
+
 </body>
 </html>

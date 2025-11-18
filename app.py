@@ -1,4 +1,4 @@
-import os
+import os, random, sendgrid
 from flask import Flask, render_template, request, redirect, url_for, flash, session, send_from_directory, abort
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -11,7 +11,9 @@ from PIL import Image
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 from flask_mail import Mail, Message
-import random
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
+
 
 UPLOAD_FOLDER = os.path.join('instance', 'uploads')
 ALLOWED_EXT = set(['png','jpg','jpeg','gif','pdf','doc','docx'])
@@ -96,6 +98,18 @@ def create_app():
 
         return render_template("admin_key.html")
     
+    def send_email_otp(to_email, otp):
+        sg = sendgrid.SendGridAPIClient(api_key=os.getenv("SENDGRID_API_KEY"))
+        message = Mail(
+            from_email=os.getenv("FROM_EMAIL"),
+            to_emails=to_email,
+            subject="Sri Vinayaga Stores - Admin OTP",
+            html_content=f"<h3>Your OTP is: <b>{otp}</b></h3>"
+                        f"<p>This OTP will expire in 5 minutes.</p>"
+        )
+        sg.send(message)
+
+    
     @app.route("/admin/resend-otp")
     def send_admin_otp():
         email = session.get("admin_email")
@@ -120,23 +134,24 @@ def create_app():
     
     @app.route("/admin/resend-otp")
     def admin_resend_otp():
-        email = session.get("admin_email")
+        data = session.get("pending_admin")
 
-        if not email:
+        if not data:
             flash("Session expired. Please sign up again.", "danger")
             return redirect(url_for("admin_signup"))
 
-        # Generate new OTP
-        new_otp = str(random.randint(100000, 999999))
-        session["admin_otp"] = new_otp
+        email = data["email"]
 
-        # Send email
-        msg = Message("Your Admin OTP", recipients=[email])
-        msg.body = f"Your new OTP is: {new_otp}"
-        mail.send(msg)
+        # New OTP
+        new_otp = random.randint(100000, 999999)
+        session["pending_admin"]["otp"] = new_otp
 
-        flash("New OTP sent to your email!", "success")
+        # Send with SendGrid
+        send_email_otp(email, new_otp)
+
+        flash("A new OTP has been sent to your email!", "success")
         return redirect(url_for("admin_verify_otp"))
+
 
     
     def check_rate_limit(key):
@@ -200,19 +215,14 @@ def create_app():
                 "otp": otp
             }
 
-            # Send OTP email
-            msg = Message(
-                subject="Sri Vinayaga Stores - Admin Signup OTP",
-                sender=os.getenv("MAIL_USER"),
-                recipients=[email]
-            )
-            msg.body = f"Your OTP for Admin signup is: {otp}"
-            mail.send(msg)
+            # Send OTP via SendGrid
+            send_email_otp(email, otp)
 
             flash("OTP sent to your email!", "success")
             return redirect(url_for("admin_verify_otp"))
 
         return render_template("admin_signup.html")
+
     
     @app.route("/admin/verify-otp", methods=["GET", "POST"])
     def admin_verify_otp():
@@ -363,6 +373,25 @@ def create_app():
         session.clear()
         flash("Admin account deleted permanently.", "info")
         return redirect(url_for('home'))
+    
+
+    @app.route('/admin/delete-bill/<bill_id>', methods=['POST'])
+    def delete_bill(bill_id):
+        # Fetch the bill by bill_id
+        bill = Bill.query.filter_by(bill_id=bill_id).first()
+        if not bill:
+            flash("Bill not found!", "danger")
+            return redirect(url_for('admin_dashboard'))  # Change to your admin dashboard route
+
+        try:
+            db.session.delete(bill)
+            db.session.commit()
+            flash("Bill deleted successfully!", "success")
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error deleting bill: {str(e)}", "danger")
+
+        return redirect(url_for('admin_dashboard'))
 
     @app.route("/admin/forgot-password", methods=["GET", "POST"])
     def admin_forgot_password():
@@ -619,28 +648,32 @@ def create_app():
 
             # Generate OTP
             otp = str(random.randint(100000, 999999))
-            session['customer_otp'] = otp
+
+            # Store temporarily
             session['customer_signup_data'] = {
                 "name": name,
                 "email": email,
                 "mobile": mobile,
                 "address": address,
-                "password": password
+                "password_hash": generate_password_hash(password),
             }
+            session['customer_otp'] = otp
 
-            # SEND OTP EMAIL
-            msg = Message("Customer Signup OTP", recipients=[email])
-            msg.body = f"Your OTP for Customer Signup is: {otp}"
-            mail.send(msg)
+            # Send OTP via SendGrid
+            send_email_otp(email, otp)
 
-            flash("OTP sent to your email", "info")
+            flash("OTP sent to your email!", "success")
             return redirect(url_for("customer_verify_otp"))
 
         return render_template("customer_signup.html")
+
     
     @app.route('/customer/verify-otp', methods=['GET', 'POST'])
     def customer_verify_otp():
-        if 'customer_signup_data' not in session:
+        data = session.get('customer_signup_data')
+
+        if not data:
+            flash("Session expired. Please sign up again.", "danger")
             return redirect(url_for('customer_signup'))
 
         if request.method == 'POST':
@@ -648,21 +681,21 @@ def create_app():
             real_otp = session.get('customer_otp')
 
             if user_otp != real_otp:
-                flash("Invalid OTP! Please try again.", "danger")
+                flash("Incorrect OTP! Please try again.", "danger")
                 return redirect(url_for('customer_verify_otp'))
 
-            data = session.get('customer_signup_data')
-
+            # Create customer
             cuid = generate_cuid()
-            cust = Customer(
+            new_customer = Customer(
                 name=data["name"],
                 email=data["email"],
                 mobile=data["mobile"],
                 address=data["address"],
-                password_hash=generate_password_hash(data["password"]),
+                password_hash=data["password_hash"],
                 cuid=cuid
             )
-            db.session.add(cust)
+
+            db.session.add(new_customer)
             db.session.commit()
 
             # Cleanup
@@ -673,23 +706,25 @@ def create_app():
             return redirect(url_for("customer_login"))
 
         return render_template("customer_verify_otp.html")
+
     
     @app.route('/customer/resend-otp')
     def customer_resend_otp():
-        if 'customer_signup_data' not in session:
+        data = session.get('customer_signup_data')
+
+        if not data:
+            flash("Session expired. Please sign up again.", "danger")
             return redirect(url_for('customer_signup'))
 
-        otp = str(random.randint(100000, 999999))
-        session['customer_otp'] = otp
+        new_otp = str(random.randint(100000, 999999))
+        session['customer_otp'] = new_otp
 
-        email = session['customer_signup_data']['email']
+        # Send OTP again via SendGrid
+        send_email_otp(data["email"], new_otp)
 
-        msg = Message("Resend OTP - Customer Signup", recipients=[email])
-        msg.body = f"Your new OTP is: {otp}"
-        mail.send(msg)
-
-        flash("OTP resent successfully!", "info")
+        flash("A new OTP has been sent!", "success")
         return redirect(url_for('customer_verify_otp'))
+
 
 
 

@@ -3,7 +3,10 @@
 <div class="form-card">
     <h2>Customers List</h2>
 
-    <table>
+    <!-- 🔍 Search Box -->
+    <input type="text" id="customerSearch" placeholder="Search customer by CUID, Name, Email or Mobile">
+
+    <table id="customerTable">
         <thead>
             <tr>
                 <th>CUID</th>
@@ -21,9 +24,12 @@
                 <td>{{ customer.email }}</td>
                 <td>{{ customer.mobile }}</td>
                 <td>
-                    <form method="POST" action="{{ url_for('delete_customer', customer_id=customer.id) }}"
-                          onsubmit="return confirm('Are you sure you want to delete this customer permanently?');">
-                        <button class="btn-danger" type="submit">Delete</button>
+                    <form class="deleteForm" method="POST"
+                          action="{{ url_for('delete_customer', customer_id=customer.id) }}">
+                        <center>
+                            <button class="btn-danger" type="button"
+                                    onclick="openDeletePopup(this)">Delete</button>
+                        </center>
                     </form>
                 </td>
             </tr>
@@ -32,11 +38,44 @@
     </table>
 </div>
 
+
+<!-- 🔥 Delete Confirmation Popup -->
+<div id="deletePopup" class="popup-overlay">
+    <div class="popup-card" id="popupCard">
+        <h3>⚠️ Warning!</h3>
+        <p>Are you sure you want to remove this customer?</p>
+
+        <div class="popup-buttons">
+            <button class="btn-no" onclick="closeDeletePopup()">No</button>
+            <button class="btn-yes" onclick="confirmDelete()">Yes</button>
+        </div>
+    </div>
+</div>
+
+
+
 <style>
+/* Search Input */
+#customerSearch {
+    width: 100%;
+    padding: 10px 12px;
+    margin-top: 10px;
+    margin-bottom: 15px;
+    border: 2px solid #2b7a78;
+    border-radius: 6px;
+    font-size: 15px;
+    outline: none;
+}
+#customerSearch:focus {
+    border-color: #205f5d;
+    box-shadow: 0 0 6px rgba(43, 122, 120, 0.5);
+}
+
+/* Table */
 table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 15px;
+    margin-top: 10px;
 }
 table th, table td {
     border: 1px solid #ccc;
@@ -44,7 +83,10 @@ table th, table td {
 }
 table th {
     background: #2b7a78;
+    color: white;
 }
+
+/* Delete Button */
 .btn-danger {
     background: #ff4d4d;
     color: white;
@@ -56,6 +98,116 @@ table th {
 .btn-danger:hover {
     background: #e60000;
 }
+
+/* Popup Overlay */
+.popup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.55);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+}
+
+/* Popup Card */
+.popup-card {
+    background: white;
+    width: 320px;
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+    animation: fadeIn 0.3s ease;
+}
+.popup-card h3 {
+    margin-top: 0;
+    color: red;
+}
+
+/* Buttons */
+.popup-buttons {
+    margin-top: 20px;
+    display: flex;
+    justify-content: space-evenly;
+}
+
+.btn-no {
+    background: #999;
+    border: none;
+    padding: 8px 18px;
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+}
+.btn-no:hover { background: #777; }
+
+.btn-yes {
+    background: #ff4d4d;
+    border: none;
+    padding: 8px 18px;
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+}
+.btn-yes:hover { background: #e60000; }
+
+/* Fade Animations */
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; transform: scale(1); }
+    to { opacity: 0; transform: scale(0.8); }
+}
 </style>
+
+
+
+
+<!-- 🔍 Search Filter -->
+<script>
+document.getElementById("customerSearch").addEventListener("keyup", function () {
+    let filter = this.value.toLowerCase();
+    let rows = document.querySelectorAll("#customerTable tbody tr");
+
+    rows.forEach(row => {
+        let text = row.innerText.toLowerCase();
+        row.style.display = text.includes(filter) ? "" : "none";
+    });
+});
+</script>
+
+
+<!-- 🔥 Delete Popup Logic -->
+<script>
+let formToSubmit = null;
+
+function openDeletePopup(button) {
+    formToSubmit = button.closest(".deleteForm");
+
+    let popup = document.getElementById("deletePopup");
+    popup.style.display = "flex";
+}
+
+function closeDeletePopup() {
+    document.getElementById("deletePopup").style.display = "none";
+}
+
+function confirmDelete() {
+    let card = document.getElementById("popupCard");
+
+    // Fade-out animation
+    card.style.animation = "fadeOut 0.4s forwards";
+
+    setTimeout(() => {
+        formToSubmit.submit();  // submit actual delete form
+    }, 350);
+}
+</script>
 
 {% endblock %}

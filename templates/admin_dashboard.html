@@ -1,40 +1,104 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="admin-wrap">
+
   <div class="admin-card">
     <h3>Admin Details</h3>
     <p><strong>Name:</strong> {{ admin.name }}</p>
     <p><strong>AUID:</strong> {{ admin.auid }}</p>
     <p><strong>Mobile:</strong> {{ admin.mobile }}</p>
-    <div style="text-align:right;">
-    <a href="{{ url_for('admin_update') }}" class="btn small">Edit Profile</a>
-    <form method="post" action="{{ url_for('admin_delete') }}" style="display:inline;" onsubmit="return confirm('Delete your admin account permanently?');">
-        <button class="btn small danger">Delete Account</button>
-    </form>
-    </div>
-    <form method="post" action="{{ url_for('admin_upload_qr') }}" enctype="multipart/form-data">
-    <label>Upload QR (for bills)</label>
-    <input type="file" name="qr" accept="image/*">
-    <button class="btn" type="submit">Upload QR</button>
-    &nbsp; &nbsp;
-    <a href="{{ url_for('admin_customers') }}" class="btn">View Customers</a>
 
-    {% if session.get('qr_uploaded') %}
+    <div style="text-align:right;">
+      <a href="{{ url_for('admin_update') }}" class="btn small" style="padding:8px 14px;"><b>Edit Profile</b></a>
+      &nbsp; &nbsp;
+      <button class="btn small danger" style="padding:8px 14px;" onclick="openDeleteModal()"><b>Delete Account</b></button>
+    </div>
+
+    <form method="post" action="{{ url_for('admin_upload_qr') }}" enctype="multipart/form-data" style="margin-top:10px;">
+      <label>Upload QR (for bills)</label>
+      <input type="file" style="padding:6px 8px; border-radius:4px; border:1px solid #ccc;" name="qr" accept="image/*">
+      <button class="btn" type="submit">Upload QR</button>
+      &nbsp;&nbsp;
+      <a href="{{ url_for('admin_customers') }}" class="btn">View Customers</a>
+
+      {% if session.get('qr_uploaded') %}
         <span style="color: green; font-weight: bold; margin-left: 10px;">
-            QR Code Uploaded ✔
+          QR Code Uploaded ✔
         </span>
-    {% endif %}
-  </form>
+      {% endif %}
+    </form>
   </div>
 
-  <div class="orders-card">
+  <!-- DELETE MODAL -->
+  <div id="deleteModal" style="
+      display:none; 
+      position:fixed; 
+      top:0; left:0; 
+      width:100%; height:100%; 
+      background: rgba(0,0,0,0.5); 
+      justify-content:center; 
+      align-items:center;
+      z-index:2000;
+  ">
+    <div id="deleteCard" style="
+        background:white; 
+        padding:30px; 
+        border-radius:8px; 
+        width:350px; 
+        text-align:center;
+        transform: scale(0);
+        transition: transform 0.3s ease;
+    ">
+      <h3 style="color:#d9534f;"><b>⚠️ Warning!</b></h3>
+      <p>Are you sure you want to delete your account?</p>
+      <div style="display:flex; justify-content:center; gap:15px; margin-top:20px;">
+        <button class="btn" onclick="closeDeleteModal()" style="padding:6px 16px;">No</button>
+        <form method="post" action="{{ url_for('admin_delete') }}" style="display:inline;">
+          <button class="btn danger" type="submit" style="padding:6px 16px;" onclick="animateDelete()">Yes</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast" style="
+      visibility: hidden;
+      min-width: 250px;
+      background-color: #28a745;
+      color: white;
+      text-align: center;
+      border-radius: 5px;
+      padding: 12px;
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 3000;
+      font-weight: bold;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      opacity: 0;
+      transform: translateY(-20px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+  ">Account deleted successfully!</div>
+
+  <!-- ORDERS -->
+  <div class="orders-card" style="margin-top:20px;">
     <h3>Customer Orders</h3>
     {% if orders %}
-      <table class="orders-table">
-        <thead><tr><th>OrderID</th><th>Customer</th><th>Items/Text</th><th>File</th><th>Pickup</th><th>Status</th><th>Actions</th></tr></thead>
-        <tbody>
-        {% for o in orders %}
+      <table class="orders-table" style="width:100%; border-collapse:collapse;">
+        <thead>
           <tr>
+            <th>OrderID</th>
+            <th>Customer</th>
+            <th>Items/Text</th>
+            <th>File</th>
+            <th>Pickup</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for o in orders %}
+          <tr style="border-bottom:1px solid #ddd;">
             <td>{{ o.order_id }}</td>
             <td>{{ o.customer.name }} ({{ o.customer.email }})</td>
             <td style="max-width:220px;overflow:auto;">{{ o.raw_text or '-' }}</td>
@@ -44,25 +108,36 @@
               {% else %}-{% endif %}
             </td>
             <td>{{ o.pickup_option }}</td>
-            <td>{{ o.status }}</td>
             <td>
-              <form method="post" action="{{ url_for('admin_change_status', order_id=o.id) }}" style="display:inline;">
-                <select name="status">
+              {% if o.status == "Pending" %}
+                <span style="color:#0047AB; font-weight:bold;">Pending</span>
+              {% elif o.status == "Received" %}
+                <span style="color:#B8860B; font-weight:bold;">Received</span>
+              {% elif o.status == "Packed" %}
+                <span style="color:#228B22; font-weight:bold;">Packed</span>
+              {% else %}
+                {{ o.status }}
+              {% endif %}
+            </td>
+            <td style="display:flex; flex-wrap:wrap; gap:5px; align-items:center;">
+              <form method="post" action="{{ url_for('admin_change_status', order_id=o.id) }}" style="display:flex; gap:5px; align-items:center;">
+                <select name="status" style="padding:6px 8px; border-radius:4px; border:1px solid #ccc;">
                   <option value="Pending" {% if o.status=='Pending' %}selected{% endif %}>Pending</option>
                   <option value="Received" {% if o.status=='Received' %}selected{% endif %}>Received</option>
                   <option value="Packed" {% if o.status=='Packed' %}selected{% endif %}>Packed</option>
                 </select>
-                <button class="btn small" type="submit">Update</button>
+                &nbsp;
+                <button class="btn small" type="submit" style="padding:8px 14px;"><b>Update</b></button>
               </form>
-
-              <form method="post" action="{{ url_for('admin_delete_order', order_id=o.id) }}" style="display:inline;" onsubmit="return confirm('Delete order?');">
-                <button class="btn small danger" type="submit">Delete</button>
+              &nbsp;
+              <form method="post" action="{{ url_for('admin_delete_order', order_id=o.id) }}" style="display:inline;">
+                <button class="btn small danger" type="submit" style="padding:8px 14px;"><b>Delete</b></button>
               </form>
-
-              <a class="btn small" href="{{ url_for('billing', order_id=o.id) }}">Billing</a>
+              &nbsp;
+              <a class="btn small" href="{{ url_for('billing', order_id=o.id) }}" style="padding:8px 14px;"><b>Billing</b></a>
             </td>
           </tr>
-        {% endfor %}
+          {% endfor %}
         </tbody>
       </table>
     {% else %}
@@ -70,17 +145,71 @@
     {% endif %}
   </div>
 
-  <div class="bills-card">
+  <!-- BILLS -->
+  <div class="bills-card" style="margin-top:20px;">
     <h3>Generated Bills</h3>
     {% if bills %}
       <ul>
-      {% for b in bills %}
-        <li>{{ b.bill_id }} — Order: {{ b.order_id }} — Total ₹{{ "%.2f"|format(b.total_amount) }} — <a href="{{ url_for('download_bill', bill_id=b.bill_id) }}">Download</a></li>
-      {% endfor %}
+        {% for b in bills %}
+          <li>{{ b.bill_id }} — Order: {{ b.order_id }} — Total ₹{{ "%.2f"|format(b.total_amount) }} — 
+              <a href="{{ url_for('download_bill', bill_id=b.bill_id) }}">Download</a>
+              &nbsp;
+          <!-- Delete Bill Form -->
+          <form method="post" action="{{ url_for('delete_bill', bill_id=b.bill_id) }}" style="display:inline;">
+            <button class="btn small danger" type="submit" onclick="return confirm('Are you sure you want to delete this bill?');" style="padding:3px 10px;">Delete</button>
+          </form>
+          </li>
+        {% endfor %}
       </ul>
     {% else %}
       <p>No bills yet.</p>
     {% endif %}
   </div>
+
 </div>
+
+<script>
+  function openDeleteModal() {
+    const modal = document.getElementById('deleteModal');
+    const card = document.getElementById('deleteCard');
+    modal.style.display = 'flex';
+    setTimeout(() => {
+      card.style.transform = 'scale(1)';
+    }, 50);
+  }
+
+  function closeDeleteModal() {
+    const modal = document.getElementById('deleteModal');
+    const card = document.getElementById('deleteCard');
+    card.style.transform = 'scale(0)';
+    setTimeout(() => {
+      modal.style.display = 'none';
+    }, 300);
+  }
+
+  function showToast(message) {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.style.visibility = 'visible';
+    toast.style.opacity = 1;
+    toast.style.transform = 'translateY(0)';
+    setTimeout(() => {
+      toast.style.opacity = 0;
+      toast.style.transform = 'translateY(-20px)';
+      setTimeout(() => {
+        toast.style.visibility = 'hidden';
+      }, 500);
+    }, 3000); // visible for 3 seconds
+  }
+
+  function animateDelete() {
+    const card = document.getElementById('deleteCard');
+    card.style.transform = 'scale(0)';
+    setTimeout(() => {
+      closeDeleteModal();
+      showToast('Account deleted successfully!');
+    }, 300);
+  }
+</script>
+
 {% endblock %}
