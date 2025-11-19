@@ -2,6 +2,7 @@ import random
 import string
 import json
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 def generate_auid():
     # 7 alphanumeric
@@ -18,7 +19,8 @@ def generate_bill_id():
     return "SVSB" + ''.join(random.choices(string.digits, k=6))
 
 def now_str():
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    ist_time = datetime.now(ZoneInfo("Asia/Kolkata"))
+    return ist_time.strftime("%Y-%m-%d %H:%M:%S")
 
 def items_to_json(item_list):
     """
