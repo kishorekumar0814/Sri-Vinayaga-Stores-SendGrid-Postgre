@@ -1,5 +1,6 @@
 import os, random, sendgrid
 from flask import Flask, render_template, request, redirect, url_for, flash, session, send_from_directory, abort
+from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from models import db, Admin, Customer, Order, Bill
@@ -13,7 +14,13 @@ from datetime import datetime, timedelta
 from flask_mail import Mail, Message
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
+from models import db
 
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 UPLOAD_FOLDER = os.path.join('instance', 'uploads')
 ALLOWED_EXT = set(['png','jpg','jpeg','gif','pdf','doc','docx'])

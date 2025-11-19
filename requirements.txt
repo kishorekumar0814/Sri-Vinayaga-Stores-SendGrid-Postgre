@@ -6,5 +6,6 @@ Pillow
 python-dotenv
 datetime
 Flask-Mail
-gunicorn
 sendgrid
+psycopg2-binary
+gunicorn
